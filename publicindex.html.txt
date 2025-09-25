@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Просто поговори</title>
+  <style>
+    body { font-family: sans-serif; background: #f8f8f8; text-align: center; }
+    #chat { display:none; max-width:400px; margin:20px auto; background:white; padding:10px; border-radius:10px; }
+    #messages { height:300px; overflow-y:auto; border:1px solid #ccc; padding:5px; margin-bottom:10px; text-align:left;}
+    input {width:75%;padding:5px;}
+    button {padding:6px 10px;}
+  </style>
+</head>
+<body>
+  <h1>Просто поговори</h1>
+  <p>Тут ви можете анонімно поговорити.</p>
+  <button id="start">Почати спілкування</button>
+
+  <div id="chat">
+    <div id="messages"></div>
+    <input id="input" placeholder="Ваше повідомлення..." />
+    <button id="send">Надіслати</button>
+  </div>
+
+<script>
+let ws;
+const startBtn = document.getElementById('start');
+const chat = document.getElementById('chat');
+const messages = document.getElementById('messages');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+
+startBtn.onclick = () => {
+  ws = new WebSocket(`wss://${location.host}`);
+  ws.onopen = () => {
+    startBtn.style.display = 'none';
+    chat.style.display = 'block';
+  };
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if(data.type==='system' || data.type==='reply'){
+      const d = document.createElement('div');
+      d.textContent = data.type==='reply' ? `Друг: ${data.message}` : data.message;
+      messages.appendChild(d);
+      messages.scrollTop = messages.scrollHeight;
+    }
+  }
+};
+
+sendBtn.onclick = () => {
+  if(input.value && ws){
+    ws.send(input.value);
+    const m = document.createElement('div');
+    m.textContent = 'Ви: ' + input.value;
+    messages.appendChild(m);
+    messages.scrollTop = messages.scrollHeight;
+    input.value='';
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Адмін — Просто поговори</title>
+<style>
+body{font-family:sans-serif;background:#f8f8f8;}
+#users{margin-bottom:10px;}
+#chat{display:none;}
+#messages{height:300px;overflow-y:auto;border:1px solid #ccc;padding:5px;}
+</style>
+</head>
+<body>
+<h2>Адмін-панель</h2>
+<div id="users">Очікуємо користувачів...</div>
+
+<div id="chat">
+  <h3 id="currentUser"></h3>
+  <div id="messages"></div>
+  <input id="input" placeholder="Ваша відповідь..." />
+  <button id="send">Відправити</button>
+</div>
+
+<script>
+let ws = new WebSocket(`wss://${location.host}/?admin`);
+let currentUser = null;
+let chats = {};
+
+const usersDiv = document.getElementById('users');
+const chat = document.getElementById('chat');
+const messages = document.getElementById('messages');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const currentUserTitle = document.getElementById('currentUser');
+
+ws.onmessage = (e) => {
+  const d = JSON.parse(e.data);
+  if(d.type==='new_user'){
+    const b = document.createElement('button');
+    b.textContent = `Користувач #${d.id}`;
+    b.onclick=()=>openChat(d.id);
+    usersDiv.appendChild(b);
+    chats[d.id]=[];
+  }
+  if(d.type==='message'){
+    chats[d.id].push(`Він: ${d.text}`);
+    if(d.id===currentUser) renderMessages();
+  }
+  if(d.type==='user_left'){
+    if(d.id===currentUser) messages.innerHTML+='<div>Користувач вийшов</div>';
+  }
+}
+
+function openChat(id){
+  currentUser=id;
+  currentUserTitle.textContent=`Чат з користувачем #${id}`;
+  chat.style.display='block';
+  renderMessages();
+}
+
+function renderMessages(){
+  messages.innerHTML='';
+  chats[currentUser].forEach(t=>{
+    const d=document.createElement('div');
+    d.textContent=t;
+    messages.appendChild(d);
+  });
+}
+
+sendBtn.onclick=()=>{
+  if(currentUser && input.value){
+    ws.send(JSON.stringify({to:currentUser,text:input.value}));
+    chats[currentUser].push('Ви: '+input.value);
+    renderMessages();
+    input.value='';
+  }
+};
+</script>
+</body>
+</html>
