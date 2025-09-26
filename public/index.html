@@ -31,6 +31,12 @@
     const form = document.getElementById("form");
     const input = document.getElementById("input");
 
+    // Привітання при вході
+    const hello = document.createElement("li");
+    hello.classList.add("friend");
+    hello.textContent = "Друг 💙: Привіт! Можеш написати все, що хочеш 💬";
+    chat.appendChild(hello);
+
     // Отримання повідомлень
     socket.on("chat message", function(data) {
       const item = document.createElement("li");
