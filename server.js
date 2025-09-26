@@ -6,10 +6,10 @@ const io = require("socket.io")(http);
 app.use(express.static("public"));
 
 let adminSocket = null;
+let users = {}; // збережемо користувачів {id: socket}
 
-// коли хтось підключається
 io.on("connection", (socket) => {
-  console.log("Новий користувач підключився:", socket.id);
+  console.log("Новий користувач:", socket.id);
 
   // якщо це адмін
   socket.on("admin connected", () => {
@@ -17,27 +17,38 @@ io.on("connection", (socket) => {
     console.log("Адмін підключився:", socket.id);
   });
 
-  // повідомлення від користувача → адміна
+  // звичайний користувач
+  users[socket.id] = socket;
+
+  // повідомлення від користувача → адміну
   socket.on("chat message", (msg) => {
-    console.log("Від користувача:", msg);
+    console.log(`Від ${socket.id}: ${msg}`);
     if (adminSocket) {
-      adminSocket.emit("user message", msg);
+      adminSocket.emit("user message", {
+        id: socket.id,
+        text: msg
+      });
     }
   });
 
-  // повідомлення від адміна → всіх користувачів
-  socket.on("admin message", (msg) => {
-    console.log("Від адміна:", msg);
-    socket.broadcast.emit("chat message", msg); // відправити всім, крім адміна
+  // повідомлення від адміна → конкретному користувачу
+  socket.on("admin message", (data) => {
+    const { id, text } = data;
+    console.log(`Адмін → ${id}: ${text}`);
+    if (users[id]) {
+      users[id].emit("chat message", text);
+    }
   });
 
-  // коли відключився
+  // відключення
   socket.on("disconnect", () => {
+    console.log("Відключився:", socket.id);
+    delete users[socket.id];
+    if (adminSocket) {
+      adminSocket.emit("user disconnected", socket.id);
+    }
     if (socket === adminSocket) {
-      console.log("Адмін відключився");
       adminSocket = null;
-    } else {
-      console.log("Користувач відключився:", socket.id);
     }
   });
 });
