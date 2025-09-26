@@ -4,9 +4,14 @@
   <meta charset="UTF-8">
   <title>Просто поговори – Адмін</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
-    h1 { background: #4a90e2; color: white; padding: 15px; margin: 0; text-align: center; }
-    #chat { list-style: none; margin: 0; padding: 20px; height: 70vh; overflow-y: auto; background: #fff; border: 1px solid #ccc; }
+    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; }
+    #sidebar { width: 250px; background: #f0f0f0; border-right: 1px solid #ccc; padding: 10px; overflow-y: auto; }
+    #sidebar h2 { margin-top: 0; }
+    #users { list-style: none; padding: 0; }
+    #users li { padding: 8px; margin: 5px 0; background: #ddd; border-radius: 6px; cursor: pointer; }
+    #users li.active { background: #4a90e2; color: white; }
+    #chat-container { flex: 1; display: flex; flex-direction: column; }
+    #chat { flex: 1; list-style: none; margin: 0; padding: 20px; overflow-y: auto; background: #fff; }
     #chat li { margin: 5px 0; padding: 10px; border-radius: 8px; max-width: 70%; word-wrap: break-word; }
     #chat li.user { background: #e6f7ff; text-align: left; }
     #chat li.admin { background: #d4f5d4; text-align: right; margin-left: auto; }
@@ -17,47 +22,91 @@
   </style>
 </head>
 <body>
-  <h1>Адмін чат</h1>
-  <ul id="chat"></ul>
-  <form id="form">
-    <input id="input" autocomplete="off" placeholder="Напишіть повідомлення..." />
-    <button>Надіслати</button>
-  </form>
+  <div id="sidebar">
+    <h2>Користувачі</h2>
+    <ul id="users"></ul>
+  </div>
+  <div id="chat-container">
+    <ul id="chat"></ul>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Напишіть повідомлення..." />
+      <button>Надіслати</button>
+    </form>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // Беремо токен із URL (?token=...)
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token') || '';
-
     const socket = io({ auth: { token } });
 
+    const usersList = document.getElementById("users");
     const chat = document.getElementById("chat");
     const form = document.getElementById("form");
     const input = document.getElementById("input");
 
-    // Отримання повідомлень
-    socket.on("chat message", function(data) {
-      const item = document.createElement("li");
-      if (data.from === "admin") {
-        item.classList.add("admin");
-        item.textContent = "Я (адмін): " + data.text;
-      } else {
-        item.classList.add("user");
-        item.textContent = "Користувач: " + data.text;
-      }
-      chat.appendChild(item);
-      chat.scrollTop = chat.scrollHeight;
+    let activeUser = null;
+    let messages = {}; // зберігати історію чатів
+
+    // список користувачів
+    socket.on("users", function(users) {
+      usersList.innerHTML = "";
+      users.forEach(u => {
+        const li = document.createElement("li");
+        li.textContent = u.id;
+        if (u.id === activeUser) li.classList.add("active");
+        li.addEventListener("click", () => {
+          activeUser = u.id;
+          renderChat();
+          updateActiveUser();
+        });
+        usersList.appendChild(li);
+      });
     });
 
-    // Відправка повідомлень
+    // повідомлення
+    socket.on("chat message", function(data) {
+      if (!messages[data.id]) messages[data.id] = [];
+      messages[data.id].push(data);
+      if (data.id === activeUser || data.from === "admin") {
+        renderChat();
+      }
+    });
+
+    // відправка
     form.addEventListener("submit", function(e) {
       e.preventDefault();
-      if (input.value) {
-        socket.emit("admin message", input.value);
+      if (input.value && activeUser) {
+        socket.emit("admin message", { id: activeUser, text: input.value });
+        if (!messages[activeUser]) messages[activeUser] = [];
+        messages[activeUser].push({ from: "admin", text: input.value });
+        renderChat();
         input.value = "";
       }
     });
+
+    function renderChat() {
+      chat.innerHTML = "";
+      if (!activeUser || !messages[activeUser]) return;
+      messages[activeUser].forEach(data => {
+        const item = document.createElement("li");
+        if (data.from === "admin") {
+          item.classList.add("admin");
+          item.textContent = "Я (адмін): " + data.text;
+        } else {
+          item.classList.add("user");
+          item.textContent = "Користувач: " + data.text;
+        }
+        chat.appendChild(item);
+      });
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function updateActiveUser() {
+      Array.from(usersList.children).forEach(li => {
+        li.classList.toggle("active", li.textContent === activeUser);
+      });
+    }
   </script>
 </body>
 </html>
