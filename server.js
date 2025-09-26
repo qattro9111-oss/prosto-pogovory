@@ -2,37 +2,37 @@ const express = require("express");
 const app = express();
 const http = require("http").createServer(app);
 const io = require("socket.io")(http);
-const path = require("path");
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
-let users = {}; // список користувачів
+let users = {};
+let counter = 1; // лічильник користувачів
 
 io.on("connection", (socket) => {
-  console.log("Користувач підключився:", socket.id);
+  const username = "Користувач " + counter++;
+  users[socket.id] = { id: socket.id, name: username };
 
-  // додаємо користувача
-  users[socket.id] = { id: socket.id };
-  io.emit("users", Object.values(users)); // повідомляємо адміна
+  // надсилаємо список користувачів адміну
+  io.emit("users", Object.values(users));
 
-  // повідомлення від користувача
+  // коли юзер пише повідомлення
   socket.on("chat message", (msg) => {
-    io.emit("chat message", { from: "user", text: msg, id: socket.id });
+    io.emit("chat message", { from: "user", text: msg, id: socket.id, name: username });
   });
 
-  // повідомлення від адміна конкретному юзеру
+  // коли адмін пише конкретному користувачу
   socket.on("admin message", (data) => {
     io.to(data.id).emit("chat message", { from: "admin", text: data.text });
   });
 
+  // відключення користувача
   socket.on("disconnect", () => {
-    console.log("Користувач відключився:", socket.id);
     delete users[socket.id];
-    io.emit("users", Object.values(users)); // оновлюємо список
+    io.emit("users", Object.values(users));
   });
 });
 
 const PORT = process.env.PORT || 3000;
 http.listen(PORT, () => {
-  console.log(`Сервер запущено на порту ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
