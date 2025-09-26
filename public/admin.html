@@ -1,24 +1,117 @@
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  // Беремо токен з URL (наприклад ?token=SECRET)
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('token') || '';
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Просто поговори — Адмін</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: #3f51b5;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-size: 20px;
+    }
+    #chat {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background: white;
+    }
+    .msg {
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .user {
+      background: #e1f5fe;
+      text-align: left;
+    }
+    .admin {
+      background: #c8e6c9;
+      text-align: right;
+    }
+    footer {
+      display: flex;
+      padding: 10px;
+      background: #eee;
+    }
+    input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #3f51b5;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #303f9f;
+    }
+  </style>
+</head>
+<body>
+  <header>👨‍💻 Панель адміністратора</header>
+  <div id="chat"></div>
+  <footer>
+    <input id="message" type="text" placeholder="Введи повідомлення...">
+    <button onclick="sendMessage()">Відправити</button>
+  </footer>
 
-  // Підключення до сервера з токеном
-  const socket = io({
-    auth: { token }
-  });
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // беремо токен із URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token') || '';
 
-  // Отримання повідомлень від користувачів
-  socket.on("user message", (data) => {
-    const chat = document.getElementById("chat");
-    const item = document.createElement("div");
-    item.textContent = `Користувач ${data.id}: ${data.text}`;
-    chat.appendChild(item);
-  });
+    // підключення до сервера
+    const socket = io({ auth: { token } });
 
-  // Приклад відправки відповіді користувачу
-  function sendMessageToUser(userId, text) {
-    socket.emit("admin message", { id: userId, text });
-  }
-</script>
+    let currentUser = null; // тут будемо зберігати ID останнього користувача
+
+    // отримання повідомлень від користувачів
+    socket.on("user message", (data) => {
+      currentUser = data.id; // зберігаємо, щоб відповідати конкретному юзеру
+      addMessage(`Користувач ${data.id}: ${data.text}`, "user");
+    });
+
+    // підтвердження відправки адмінського повідомлення
+    socket.on("admin message", (data) => {
+      addMessage(`Ти: ${data.text}`, "admin");
+    });
+
+    function sendMessage() {
+      const input = document.getElementById("message");
+      const text = input.value.trim();
+      if (text && currentUser) {
+        socket.emit("admin message", { id: currentUser, text });
+        addMessage(`Ти: ${text}`, "admin");
+        input.value = "";
+      }
+    }
+
+    function addMessage(text, type) {
+      const chat = document.getElementById("chat");
+      const item = document.createElement("div");
+      item.classList.add("msg", type);
+      item.textContent = text;
+      chat.appendChild(item);
+      chat.scrollTop = chat.scrollHeight;
+    }
+  </script>
+</body>
+</html>
