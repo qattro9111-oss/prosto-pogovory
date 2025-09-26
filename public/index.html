@@ -46,9 +46,15 @@
       background: #48bb78;
     }
 
-    .other {
+    .friend {
       align-self: flex-start;
       background: #4299e1;
+    }
+
+    .label {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 2px;
     }
 
     form {
@@ -104,20 +110,29 @@
       e.preventDefault();
       if (input.value) {
         socket.emit('chat message', input.value);
-        addMessage(input.value, 'me');
+        addMessage("Я", input.value, 'me');
         input.value = '';
       }
     });
 
     socket.on('chat message', function(msg) {
-      addMessage(msg, 'other');
+      addMessage("Друг 💙", msg, 'friend');
     });
 
-    function addMessage(text, type) {
+    function addMessage(sender, text, type) {
+      const wrapper = document.createElement('div');
+      const label = document.createElement('div');
       const item = document.createElement('div');
+
+      label.textContent = sender;
+      label.classList.add('label');
       item.textContent = text;
       item.classList.add('msg', type);
-      messages.appendChild(item);
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(item);
+      messages.appendChild(wrapper);
+
       messages.scrollTop = messages.scrollHeight;
     }
   </script>
