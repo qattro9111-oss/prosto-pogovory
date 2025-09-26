@@ -1,175 +1,24 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Адмін – Просто поговори</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      height: 100vh;
-    }
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // Беремо токен з URL (наприклад ?token=SECRET)
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token') || '';
 
-    #users {
-      width: 200px;
-      background: #2d3748;
-      color: white;
-      padding: 10px;
-      overflow-y: auto;
-    }
+  // Підключення до сервера з токеном
+  const socket = io({
+    auth: { token }
+  });
 
-    #users div {
-      padding: 8px;
-      margin: 4px 0;
-      background: #4a5568;
-      cursor: pointer;
-      border-radius: 5px;
-    }
+  // Отримання повідомлень від користувачів
+  socket.on("user message", (data) => {
+    const chat = document.getElementById("chat");
+    const item = document.createElement("div");
+    item.textContent = `Користувач ${data.id}: ${data.text}`;
+    chat.appendChild(item);
+  });
 
-    #users div.active {
-      background: #ed8936;
-    }
-
-    #chat {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: #edf2f7;
-    }
-
-    #messages {
-      flex: 1;
-      padding: 15px;
-      overflow-y: auto;
-    }
-
-    .msg {
-      margin: 5px 0;
-      padding: 8px 12px;
-      border-radius: 10px;
-      max-width: 70%;
-      word-wrap: break-word;
-    }
-
-    .me {
-      background: #ed8936;
-      color: white;
-      align-self: flex-end;
-    }
-
-    .other {
-      background: #3182ce;
-      color: white;
-      align-self: flex-start;
-    }
-
-    form {
-      display: flex;
-      padding: 10px;
-      background: white;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-right: 10px;
-    }
-
-    button {
-      padding: 10px 15px;
-      border: none;
-      border-radius: 8px;
-      background: #ed8936;
-      color: white;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #dd6b20;
-    }
-  </style>
-</head>
-<body>
-  <div id="users"><b>Користувачі</b></div>
-
-  <div id="chat">
-    <div id="messages"></div>
-    <form id="form">
-      <input id="input" placeholder="Напишіть відповідь..." autocomplete="off" />
-      <button>Відправити</button>
-    </form>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const usersDiv = document.getElementById("users");
-    const messages = document.getElementById("messages");
-    const form = document.getElementById("form");
-    const input = document.getElementById("input");
-
-    let currentUser = null;
-    let chats = {}; // збереження історії
-
-    socket.emit("admin connected");
-
-    socket.on("user message", (data) => {
-      const { id, text } = data;
-
-      if (!chats[id]) chats[id] = [];
-      chats[id].push({ text, type: "other" });
-
-      if (!document.getElementById(id)) {
-        const div = document.createElement("div");
-        div.id = id;
-        div.textContent = id;
-        div.onclick = () => selectUser(id);
-        usersDiv.appendChild(div);
-      }
-
-      if (currentUser === id) {
-        addMessage(text, "other");
-      }
-    });
-
-    socket.on("user disconnected", (id) => {
-      const div = document.getElementById(id);
-      if (div) div.remove();
-      if (currentUser === id) {
-        messages.innerHTML = "<i>Користувач відключився</i>";
-        currentUser = null;
-      }
-    });
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      if (input.value && currentUser) {
-        socket.emit("admin message", { id: currentUser, text: input.value });
-        addMessage(input.value, "me");
-        chats[currentUser].push({ text: input.value, type: "me" });
-        input.value = "";
-      }
-    });
-
-    function selectUser(id) {
-      currentUser = id;
-      document.querySelectorAll("#users div").forEach(el => el.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-      messages.innerHTML = "";
-      chats[id].forEach(msg => addMessage(msg.text, msg.type));
-    }
-
-    function addMessage(text, type) {
-      const item = document.createElement("div");
-      item.textContent = text;
-      item.classList.add("msg", type);
-      messages.appendChild(item);
-      messages.scrollTop = messages.scrollHeight;
-    }
-  </script>
-</body>
-</html>
+  // Приклад відправки відповіді користувачу
+  function sendMessageToUser(userId, text) {
+    socket.emit("admin message", { id: userId, text });
+  }
+</script>
