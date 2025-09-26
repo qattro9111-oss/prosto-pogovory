@@ -7,9 +7,9 @@
     body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
     h1 { background: #4a90e2; color: white; padding: 15px; margin: 0; text-align: center; }
     #chat { list-style: none; margin: 0; padding: 20px; height: 70vh; overflow-y: auto; background: #fff; border: 1px solid #ccc; }
-    #chat li { margin: 5px 0; padding: 10px; border-radius: 8px; }
+    #chat li { margin: 5px 0; padding: 10px; border-radius: 8px; max-width: 70%; word-wrap: break-word; }
     #chat li.user { background: #e6f7ff; text-align: left; }
-    #chat li.admin { background: #d4f5d4; text-align: right; }
+    #chat li.admin { background: #d4f5d4; text-align: right; margin-left: auto; }
     form { display: flex; padding: 10px; background: #eee; }
     input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
     button { padding: 10px; border: none; background: #4a90e2; color: white; border-radius: 4px; margin-left: 10px; }
@@ -30,9 +30,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token') || '';
 
-    const socket = io({
-      auth: { token }
-    });
+    const socket = io({ auth: { token } });
 
     const chat = document.getElementById("chat");
     const form = document.getElementById("form");
@@ -52,7 +50,7 @@
       chat.scrollTop = chat.scrollHeight;
     });
 
-    // Відправка повідомлення
+    // Відправка повідомлень
     form.addEventListener("submit", function(e) {
       e.preventDefault();
       if (input.value) {
