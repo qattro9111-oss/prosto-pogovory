@@ -4,26 +4,31 @@ const http = require("http").createServer(app);
 const io = require("socket.io")(http);
 const path = require("path");
 
-// Твій секретний токен для адміна
-const ADMIN_TOKEN = "MY_SECRET_TOKEN";
-
 app.use(express.static(path.join(__dirname, "public")));
 
-io.on("connection", (socket) => {
-  console.log("Користувач підключився");
+let users = {}; // список користувачів
 
-  // Повідомлення від користувача
+io.on("connection", (socket) => {
+  console.log("Користувач підключився:", socket.id);
+
+  // додаємо користувача
+  users[socket.id] = { id: socket.id };
+  io.emit("users", Object.values(users)); // повідомляємо адміна
+
+  // повідомлення від користувача
   socket.on("chat message", (msg) => {
-    io.emit("chat message", { from: "user", text: msg });
+    io.emit("chat message", { from: "user", text: msg, id: socket.id });
   });
 
-  // Повідомлення від адміна
-  socket.on("admin message", (msg) => {
-    io.emit("chat message", { from: "admin", text: msg });
+  // повідомлення від адміна конкретному юзеру
+  socket.on("admin message", (data) => {
+    io.to(data.id).emit("chat message", { from: "admin", text: data.text });
   });
 
   socket.on("disconnect", () => {
-    console.log("Користувач відключився");
+    console.log("Користувач відключився:", socket.id);
+    delete users[socket.id];
+    io.emit("users", Object.values(users)); // оновлюємо список
   });
 });
 
