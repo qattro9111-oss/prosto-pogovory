@@ -1,48 +1,48 @@
-import express from "express";
-import { createServer } from "http";
-import { WebSocketServer } from "ws";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+const express = require("express");
 const app = express();
-const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
 
-let clients = {}; // {id: ws}
-let admin = null;
-let idCounter = 1;
+app.use(express.static("public"));
 
-wss.on("connection", (ws, req) => {
-  const isAdmin = req.url.includes("admin");
-  if (isAdmin) {
-    admin = ws;
-    console.log("Admin connected");
-    ws.on("close", () => { admin = null; });
-    return;
-  }
+let adminSocket = null;
 
-  const id = idCounter++;
-  clients[id] = ws;
-  console.log("User connected", id);
+// коли хтось підключається
+io.on("connection", (socket) => {
+  console.log("Новий користувач підключився:", socket.id);
 
-  ws.send(JSON.stringify({ type: "system", message: "Ви підключились. Очікуйте відповіді." }));
-  if (admin) admin.send(JSON.stringify({ type: "new_user", id }));
-
-  ws.on("message", (msg) => {
-    if (admin) admin.send(JSON.stringify({ type: "message", id, text: msg.toString() }));
+  // якщо це адмін
+  socket.on("admin connected", () => {
+    adminSocket = socket;
+    console.log("Адмін підключився:", socket.id);
   });
 
-  ws.on("close", () => {
-    delete clients[id];
-    if (admin) admin.send(JSON.stringify({ type: "user_left", id }));
+  // повідомлення від користувача → адміна
+  socket.on("chat message", (msg) => {
+    console.log("Від користувача:", msg);
+    if (adminSocket) {
+      adminSocket.emit("user message", msg);
+    }
+  });
+
+  // повідомлення від адміна → всіх користувачів
+  socket.on("admin message", (msg) => {
+    console.log("Від адміна:", msg);
+    socket.broadcast.emit("chat message", msg); // відправити всім, крім адміна
+  });
+
+  // коли відключився
+  socket.on("disconnect", () => {
+    if (socket === adminSocket) {
+      console.log("Адмін відключився");
+      adminSocket = null;
+    } else {
+      console.log("Користувач відключився:", socket.id);
+    }
   });
 });
 
-app.use(express.static(path.join(__dirname, "public")));
-
-server.listen(3000, () => {
-  console.log("Сервер запущений на порті 3000");
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => {
+  console.log(`Сервер працює на порту ${PORT}`);
 });
