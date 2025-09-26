@@ -1,61 +1,33 @@
 const express = require("express");
-const path = require("path");
-const http = require("http");
-const { Server } = require("socket.io");
-
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
+const path = require("path");
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+// Твій секретний токен для адміна
+const ADMIN_TOKEN = "MY_SECRET_TOKEN";
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// захищена віддача admin.html — тільки якщо token в query співпадає
-app.get("/admin.html", (req, res) => {
-  const token = req.query.token || "";
-  if (token === ADMIN_TOKEN) {
-    res.sendFile(path.join(__dirname, "public", "admin.html"));
-  } else {
-    res.status(403).send("Forbidden");
-  }
-});
-
-let adminSocket = null;
-let users = {}; // {socketId: socket}
-
 io.on("connection", (socket) => {
-  // Якщо підключення надходить з admin (через auth)
-  const token = socket.handshake.auth && socket.handshake.auth.token;
-  if (token && token === ADMIN_TOKEN) {
-    adminSocket = socket;
-    console.log("Адмін підключився:", socket.id);
-    // Можеш пересилати адміну номер користувачів тощо
-    socket.on("disconnect", () => { adminSocket = null; });
-    return;
-  }
+  console.log("Користувач підключився");
 
-  // звичайний користувач
-  users[socket.id] = socket;
-  console.log("Користувач підключився:", socket.id);
-
+  // Повідомлення від користувача
   socket.on("chat message", (msg) => {
-    if (adminSocket) {
-      adminSocket.emit("user message", { id: socket.id, text: msg });
-    }
+    io.emit("chat message", { from: "user", text: msg });
   });
 
-  socket.on("admin message", (data) => {
-    // це не використовується звичайним юзером — тільки адмін надсилає на UI з auth
-    const { id, text } = data;
-    if (users[id]) users[id].emit("chat message", text);
+  // Повідомлення від адміна
+  socket.on("admin message", (msg) => {
+    io.emit("chat message", { from: "admin", text: msg });
   });
 
   socket.on("disconnect", () => {
-    delete users[socket.id];
-    if (adminSocket) adminSocket.emit("user disconnected", socket.id);
+    console.log("Користувач відключився");
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log("Server running on port", PORT));
+http.listen(PORT, () => {
+  console.log(`Сервер запущено на порту ${PORT}`);
+});
