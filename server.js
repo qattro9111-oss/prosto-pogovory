@@ -1,63 +1,58 @@
 const express = require("express");
+const http = require("http");
+const path = require("path");
+const { Server } = require("socket.io");
+const mongoose = require("mongoose");
+
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
-const { MongoClient } = require("mongodb");
+const server = http.createServer(app);
+const io = new Server(server);
 
-app.use(express.static("public"));
+// Підключення до MongoDB
+const mongoURI = process.env.MONGO_URI; // змінна середовища в Render
+mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
-let users = {};
-let counter = 1;
+// Схема повідомлень
+const messageSchema = new mongoose.Schema({
+  from: String,   // "user" або "admin"
+  text: String,   // текст повідомлення
+  time: { type: Date, default: Date.now }
+});
 
-// 🔹 Підключення до MongoDB
-const uri = process.env.MONGO_URI; // у Render додаси в Environment
-const client = new MongoClient(uri);
-let messagesCollection;
+const Message = mongoose.model("Message", messageSchema);
 
-async function initDB() {
-  await client.connect();
-  const db = client.db("chatDB"); // назва бази
-  messagesCollection = db.collection("messages"); // колекція
-  console.log("✅ Підключено до MongoDB");
-}
-initDB();
+// Віддаємо статичні файли (index.html, admin.html)
+app.use(express.static(path.join(__dirname, "public")));
 
-// 🔹 Socket.io логіка
+// WebSocket логіка
 io.on("connection", async (socket) => {
-  const username = "Користувач " + counter++;
-  users[socket.id] = { id: socket.id, name: username };
+  console.log("🔗 Новий клієнт підключився");
 
-  io.emit("users", Object.values(users));
+  // При підключенні — відправляємо історію останніх 50 повідомлень
+  const history = await Message.find().sort({ time: 1 }).limit(50);
+  socket.emit("chat history", history);
 
-  // Надсилаємо стару історію юзеру
-  const history = await messagesCollection.find({ id: socket.id }).toArray();
-  history.forEach(msg => {
-    socket.emit("chat message", msg);
+  // Отримання нового повідомлення
+  socket.on("chat message", async (data) => {
+    const newMsg = new Message(data);
+    await newMsg.save();
+
+    io.emit("chat message", {
+      from: data.from,
+      text: data.text,
+      time: newMsg.time
+    });
   });
 
-  // Повідомлення від юзера
-  socket.on("chat message", async (msg) => {
-    const message = { from: "user", text: msg, id: socket.id, name: username };
-    await messagesCollection.insertOne(message);
-    io.emit("chat message", message);
-  });
-
-  // Повідомлення від адміна
-  socket.on("admin message", async (data) => {
-    const message = { from: "admin", text: data.text, id: data.id, name: "Адмін" };
-    await messagesCollection.insertOne(message);
-    io.to(data.id).emit("chat message", message);
-    socket.emit("chat message", message); // щоб у адміна теж було видно
-  });
-
-  // Відключення
   socket.on("disconnect", () => {
-    delete users[socket.id];
-    io.emit("users", Object.values(users));
+    console.log("❌ Клієнт відключився");
   });
 });
 
+// Запуск сервера
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Сервер запущено на порту ${PORT}`);
 });
