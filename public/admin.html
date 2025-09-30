@@ -2,105 +2,67 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Просто поговори – Адмін</title>
+  <title>Адмін - Просто поговори</title>
   <style>
-    body { font-family: Arial, sans-serif; display: flex; height: 100vh; margin: 0; }
-    #users { width: 200px; border-right: 1px solid #ccc; padding: 10px; overflow-y: auto; }
-    #users li { list-style: none; padding: 5px; cursor: pointer; }
-    #users li.active { background: #ddd; font-weight: bold; }
-    #chat { flex: 1; display: flex; flex-direction: column; }
-    #messages { flex: 1; overflow-y: auto; padding: 10px; }
-    #messages li { margin: 5px 0; }
-    .user { color: blue; }
-    .admin { color: green; }
-    #form { display: flex; border-top: 1px solid #ccc; }
-    #input { flex: 1; padding: 10px; border: none; }
-    button { padding: 10px; border: none; background: #333; color: white; cursor: pointer; }
+    body { font-family: Arial, sans-serif; background:#eef2f3; margin:0; padding:0; }
+    #chat { list-style:none; padding:10px; margin:0; height:70vh; overflow-y:auto; background:white; }
+    #chat li { padding:8px 12px; margin-bottom:8px; border-radius:8px; max-width:70%; }
+    .admin { background:#cfe2ff; margin-left:auto; }
+    .user { background:#e2e3e5; margin-right:auto; }
+    #form { display:flex; padding:10px; background:#fff; border-top:1px solid #ccc; }
+    #input { flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; }
+    button { padding:10px 15px; border:none; border-radius:6px; background:#198754; color:#fff; margin-left:5px; cursor:pointer; }
+    button:hover { background:#157347; }
+    #container { display:flex; flex-direction:column; height:100vh; }
   </style>
 </head>
 <body>
-  <ul id="users"></ul>
-  <div id="chat">
-    <ul id="messages"></ul>
-    <form id="form" action="">
-      <input id="input" autocomplete="off" placeholder="Написати повідомлення..." />
-      <button>Надіслати</button>
-    </form>
-  </div>
+<div id="container">
+  <ul id="chat"></ul>
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="Напишіть відповідь..." />
+    <button>Відправити</button>
+  </form>
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const usersList = document.getElementById("users");
-    const messages = {};
-    let activeUser = null;
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+  const chat = document.getElementById("chat");
 
-    const chat = document.getElementById("messages");
-    const form = document.getElementById("form");
-    const input = document.getElementById("input");
-
-    // список користувачів
-    socket.on("users", function(users) {
-      usersList.innerHTML = "";
-      users.forEach(u => {
-        const li = document.createElement("li");
-        li.textContent = u.name;
-        li.dataset.id = u.id;
-        if (u.id === activeUser) li.classList.add("active");
-        li.addEventListener("click", () => {
-          activeUser = u.id;
-          renderChat();
-          updateActiveUser();
-        });
-        usersList.appendChild(li);
-      });
-    });
-
-    // повідомлення
-    socket.on("chat message", function(data) {
-      if (!messages[data.id]) messages[data.id] = [];
-      messages[data.id].push(data);
-      if (data.id === activeUser) {
-        renderChat();
-      }
-    });
-
-    // відправка адміном
-    form.addEventListener("submit", function(e) {
-      e.preventDefault();
-      if (input.value && activeUser) {
-        socket.emit("admin message", { id: activeUser, text: input.value });
-        if (!messages[activeUser]) messages[activeUser] = [];
-        messages[activeUser].push({ from: "admin", text: input.value });
-        renderChat();
-        input.value = "";
-      }
-    });
-
-    function renderChat() {
-      chat.innerHTML = "";
-      if (messages[activeUser]) {
-        messages[activeUser].forEach(data => {
-          const item = document.createElement("li");
-          if (data.from === "admin") {
-            item.classList.add("admin");
-            item.textContent = "Я (адмін): " + data.text;
-          } else {
-            item.classList.add("user");
-            item.textContent = data.name + ": " + data.text;
-          }
-          chat.appendChild(item);
-        });
-        chat.scrollTop = chat.scrollHeight;
-      }
+  function addMessage(from, text) {
+    const item = document.createElement("li");
+    if (from === "admin") {
+      item.classList.add("admin");
+      item.textContent = "Я (адмін): " + text;
+    } else {
+      item.classList.add("user");
+      item.textContent = "Користувач: " + text;
     }
+    chat.appendChild(item);
+    chat.scrollTop = chat.scrollHeight;
+  }
 
-    function updateActiveUser() {
-      document.querySelectorAll("#users li").forEach(li => {
-        li.classList.remove("active");
-        if (li.dataset.id === activeUser) li.classList.add("active");
-      });
+  // отримуємо історію при вході
+  socket.on("chat history", (messages) => {
+    messages.forEach(msg => addMessage(msg.from, msg.text));
+  });
+
+  // отримуємо нові повідомлення
+  socket.on("chat message", (data) => {
+    addMessage(data.from, data.text);
+  });
+
+  // надсилаємо повідомлення
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (input.value) {
+      socket.emit("chat message", { from: "admin", text: input.value });
+      input.value = "";
     }
-  </script>
+  });
+</script>
 </body>
 </html>
