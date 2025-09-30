@@ -2,74 +2,168 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>Просто поговори</title>
+  <title>Просто поговори 💬</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: Arial, sans-serif; background:#f0f2f5; margin:0; padding:0; }
-    #chat { list-style:none; padding:10px; margin:0; height:70vh; overflow-y:auto; background:white; }
-    #chat li { padding:8px 12px; margin-bottom:8px; border-radius:8px; max-width:70%; position:relative; }
-    .me { background:#d1e7dd; margin-left:auto; }
-    .friend { background:#f8d7da; margin-right:auto; }
-    .time { font-size:0.75em; color:#555; display:block; text-align:right; margin-top:4px; }
-    #form { display:flex; padding:10px; background:#fff; border-top:1px solid #ccc; }
-    #input { flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; }
-    button { padding:10px 15px; border:none; border-radius:6px; background:#0d6efd; color:#fff; margin-left:5px; cursor:pointer; }
-    button:hover { background:#0b5ed7; }
-    #container { display:flex; flex-direction:column; height:100vh; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #4a90e2;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #chat {
+      flex: 1;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .message {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .message.friend {
+      justify-content: flex-start;
+    }
+
+    .message.me {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 20px;
+      position: relative;
+      line-height: 1.4;
+    }
+
+    .bubble.friend {
+      background: white;
+      color: #333;
+      margin-left: 10px;
+      border: 1px solid #ddd;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .bubble.me {
+      background: #4a90e2;
+      color: white;
+      margin-right: 10px;
+    }
+
+    .time {
+      font-size: 0.75em;
+      color: #777;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    form {
+      display: flex;
+      padding: 10px;
+      background: white;
+      border-top: 1px solid #ddd;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    button {
+      margin-left: 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 20px;
+      background: #4a90e2;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #357abd;
+    }
   </style>
 </head>
 <body>
-<div id="container">
-  <ul id="chat"></ul>
+  <header>Просто поговори 💬</header>
+  <div id="chat"></div>
   <form id="form">
     <input id="input" autocomplete="off" placeholder="Напишіть повідомлення..." />
     <button>Надіслати</button>
   </form>
-</div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const socket = io();
-  const form = document.getElementById("form");
-  const input = document.getElementById("input");
-  const chat = document.getElementById("chat");
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
 
-  function formatTime(dateString) {
-    const d = new Date(dateString);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function addMessage(from, text, time) {
-    const item = document.createElement("li");
-    if (from === "admin") {
-      item.classList.add("friend");
-      item.textContent = "Друг 💙: " + text;
-    } else {
-      item.classList.add("me");
-      item.textContent = "Я: " + text;
+    function formatTime(dateString) {
+      const d = new Date(dateString);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    const t = document.createElement("span");
-    t.classList.add("time");
-    t.textContent = formatTime(time);
-    item.appendChild(t);
-    chat.appendChild(item);
-    chat.scrollTop = chat.scrollHeight;
-  }
 
-  socket.on("chat history", (messages) => {
-    messages.forEach(msg => addMessage(msg.from, msg.text, msg.time));
-  });
+    function addMessage(from, text, time) {
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('message');
+      wrapper.classList.add(from === 'admin' ? 'friend' : 'me');
 
-  socket.on("chat message", (data) => {
-    addMessage(data.from, data.text, data.time);
-  });
+      const bubble = document.createElement('div');
+      bubble.classList.add('bubble');
+      bubble.classList.add(from === 'admin' ? 'friend' : 'me');
+      bubble.textContent = text;
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (input.value) {
-      socket.emit("chat message", { from: "user", text: input.value });
-      input.value = "";
+      const timeSpan = document.createElement('div');
+      timeSpan.classList.add('time');
+      timeSpan.textContent = formatTime(time);
+
+      bubble.appendChild(timeSpan);
+      wrapper.appendChild(bubble);
+      chat.appendChild(wrapper);
+
+      chat.scrollTop = chat.scrollHeight;
     }
-  });
-</script>
+
+    socket.on('chat history', (messages) => {
+      messages.forEach(msg => addMessage(msg.from, msg.text, msg.time));
+    });
+
+    socket.on('chat message', (data) => {
+      addMessage(data.from, data.text, data.time);
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (input.value) {
+        socket.emit('chat message', { from: 'user', text: input.value });
+        input.value = '';
+      }
+    });
+  </script>
 </body>
 </html>
