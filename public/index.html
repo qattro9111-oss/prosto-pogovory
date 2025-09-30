@@ -4,53 +4,65 @@
   <meta charset="UTF-8">
   <title>Просто поговори</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f0f0f0; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-    #chat-container { width: 400px; background: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-    #messages { flex: 1; overflow-y: auto; padding: 10px; }
-    #messages li { margin: 5px 0; padding: 8px; border-radius: 5px; max-width: 70%; }
-    .me { background: #d1ffd6; align-self: flex-end; }
-    .friend { background: #d6e0ff; align-self: flex-start; }
-    #form { display: flex; border-top: 1px solid #ccc; }
-    #input { flex: 1; padding: 10px; border: none; border-radius: 0 0 0 10px; }
-    button { padding: 10px; border: none; background: #333; color: white; border-radius: 0 0 10px 0; cursor: pointer; }
+    body { font-family: Arial, sans-serif; background:#f0f2f5; margin:0; padding:0; }
+    #chat { list-style:none; padding:10px; margin:0; height:70vh; overflow-y:auto; background:white; }
+    #chat li { padding:8px 12px; margin-bottom:8px; border-radius:8px; max-width:70%; }
+    .me { background:#d1e7dd; align-self:flex-end; margin-left:auto; }
+    .friend { background:#f8d7da; align-self:flex-start; margin-right:auto; }
+    #form { display:flex; padding:10px; background:#fff; border-top:1px solid #ccc; }
+    #input { flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; }
+    button { padding:10px 15px; border:none; border-radius:6px; background:#0d6efd; color:#fff; margin-left:5px; cursor:pointer; }
+    button:hover { background:#0b5ed7; }
+    #container { display:flex; flex-direction:column; height:100vh; }
   </style>
 </head>
 <body>
-  <div id="chat-container">
-    <ul id="messages"></ul>
-    <form id="form" action="">
-      <input id="input" autocomplete="off" placeholder="Напиши повідомлення..." />
-      <button>Надіслати</button>
-    </form>
-  </div>
+<div id="container">
+  <ul id="chat"></ul>
+  <form id="form">
+    <input id="input" autocomplete="off" placeholder="Напишіть повідомлення..." />
+    <button>Надіслати</button>
+  </form>
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    const messages = document.getElementById("messages");
-    const form = document.getElementById("form");
-    const input = document.getElementById("input");
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+  const chat = document.getElementById("chat");
 
-    socket.on("chat message", function(data) {
-      const item = document.createElement("li");
-      if (data.from === "admin") {
-        item.classList.add("friend");
-        item.textContent = "Друг 💙: " + data.text;
-      } else {
-        item.classList.add("me");
-        item.textContent = "Я: " + data.text;
-      }
-      messages.appendChild(item);
-      messages.scrollTop = messages.scrollHeight;
-    });
+  function addMessage(from, text) {
+    const item = document.createElement("li");
+    if (from === "admin") {
+      item.classList.add("friend");
+      item.textContent = "Друг 💙: " + text;
+    } else {
+      item.classList.add("me");
+      item.textContent = "Я: " + text;
+    }
+    chat.appendChild(item);
+    chat.scrollTop = chat.scrollHeight;
+  }
 
-    form.addEventListener("submit", function(e) {
-      e.preventDefault();
-      if (input.value) {
-        socket.emit("chat message", input.value);
-        input.value = "";
-      }
-    });
-  </script>
+  // отримуємо історію при вході
+  socket.on("chat history", (messages) => {
+    messages.forEach(msg => addMessage(msg.from, msg.text));
+  });
+
+  // отримуємо нові повідомлення
+  socket.on("chat message", (data) => {
+    addMessage(data.from, data.text);
+  });
+
+  // надсилаємо повідомлення
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (input.value) {
+      socket.emit("chat message", { from: "user", text: input.value });
+      input.value = "";
+    }
+  });
+</script>
 </body>
 </html>
