@@ -6,9 +6,10 @@
   <style>
     body { font-family: Arial, sans-serif; background:#eef2f3; margin:0; padding:0; }
     #chat { list-style:none; padding:10px; margin:0; height:70vh; overflow-y:auto; background:white; }
-    #chat li { padding:8px 12px; margin-bottom:8px; border-radius:8px; max-width:70%; }
+    #chat li { padding:8px 12px; margin-bottom:8px; border-radius:8px; max-width:70%; position:relative; }
     .admin { background:#cfe2ff; margin-left:auto; }
     .user { background:#e2e3e5; margin-right:auto; }
+    .time { font-size:0.75em; color:#555; display:block; text-align:right; margin-top:4px; }
     #form { display:flex; padding:10px; background:#fff; border-top:1px solid #ccc; }
     #input { flex-grow:1; padding:10px; border:1px solid #ccc; border-radius:6px; }
     button { padding:10px 15px; border:none; border-radius:6px; background:#198754; color:#fff; margin-left:5px; cursor:pointer; }
@@ -32,7 +33,12 @@
   const input = document.getElementById("input");
   const chat = document.getElementById("chat");
 
-  function addMessage(from, text) {
+  function formatTime(dateString) {
+    const d = new Date(dateString);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function addMessage(from, text, time) {
     const item = document.createElement("li");
     if (from === "admin") {
       item.classList.add("admin");
@@ -41,21 +47,22 @@
       item.classList.add("user");
       item.textContent = "Користувач: " + text;
     }
+    const t = document.createElement("span");
+    t.classList.add("time");
+    t.textContent = formatTime(time);
+    item.appendChild(t);
     chat.appendChild(item);
     chat.scrollTop = chat.scrollHeight;
   }
 
-  // отримуємо історію при вході
   socket.on("chat history", (messages) => {
-    messages.forEach(msg => addMessage(msg.from, msg.text));
+    messages.forEach(msg => addMessage(msg.from, msg.text, msg.time));
   });
 
-  // отримуємо нові повідомлення
   socket.on("chat message", (data) => {
-    addMessage(data.from, data.text);
+    addMessage(data.from, data.text, data.time);
   });
 
-  // надсилаємо повідомлення
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     if (input.value) {
