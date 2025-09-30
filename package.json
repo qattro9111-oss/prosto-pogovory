@@ -1,16 +1,13 @@
 {
   "name": "prosto-pogovory",
   "version": "1.0.0",
-  "description": "Простий чат на Node.js з Express та Socket.io",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.5",
+    "mongodb": "^6.3.0"
   }
 }
